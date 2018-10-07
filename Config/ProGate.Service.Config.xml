@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ProGate.Service.Config>
+	<SBM>
+		<Server>p-m-sbm3.pfad.biz</Server>
+		<User>sky_orga_admin</User>
+		<Password>126043a656552a205b5cc5f4</Password>
+	</SBM>
+	<Logging>
+		<Path>C:\Development\ProGate\Logging</Path>
+	</Logging>
+	<Tasks>
+		<ImportADUsersTask>
+			<Name>Import AD Users</Name>
+			<Active>True</Active>
+			<StartTime>000000</StartTime>
+			<EndTime>240000</EndTime>
+			<DefaultUser>TT_DEFAULT_USER</DefaultUser>
+			<ADUserFile>C:\Development\ProGate\Data\ADDump_sky.csv</ADUserFile>
+			<AddUser>True</AddUser>
+			<UpdateUser>True</UpdateUser>
+			<DeleteUser>True</DeleteUser>
+			<LastRunDate>20181007094806</LastRunDate>
+			<LastRunDuration>003716</LastRunDuration>
+		</ImportADUsersTask>
+		<ImportSAPOrgChartTask>
+			<Name>Import SAP Org-Chart</Name>
+			<Active>True</Active>
+			<StartTime>000000</StartTime>
+			<EndTime>240000</EndTime>
+			<ObjectFile>C:\Development\ProGate\Data\orgobj</ObjectFile>
+			<ReferenceFile>C:\Development\ProGate\Data\orgver</ReferenceFile>
+			<LastRunDate>20181007121711</LastRunDate>
+			<LastRunDuration>010539</LastRunDuration>
+		</ImportSAPOrgChartTask>
+	</Tasks>
+</ProGate.Service.Config>

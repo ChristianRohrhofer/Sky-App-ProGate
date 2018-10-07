@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{450EF3D5-35AB-4E75-A938-1AF1EB04FB3E}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Sky.ProGate.ServiceSimulator</RootNamespace>
+    <AssemblyName>Sky.ProGate.ServiceSimulator</AssemblyName>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>
+    </DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ServiceSimulatorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ServiceSimulatorForm.Designer.cs">
+      <DependentUpon>ServiceSimulatorForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="ServiceSimulatorForm.resx">
+      <DependentUpon>ServiceSimulatorForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Arrays\Sky.Library.Arrays.csproj">
+      <Project>{093724c3-fba2-407e-a0ad-df4ef97030c3}</Project>
+      <Name>Sky.Library.Arrays</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Files\Sky.Library.Files.csproj">
+      <Project>{eaedd599-8ff0-493b-aab3-d020caf0e035}</Project>
+      <Name>Sky.Library.Files</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Registry\Sky.Library.Registry.csproj">
+      <Project>{8b01c1b8-8d6d-46d2-9507-17c6aa0099ca}</Project>
+      <Name>Sky.Library.Registry</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Text\Sky.Library.Text.csproj">
+      <Project>{154909fd-12fb-4807-950e-432100e97481}</Project>
+      <Name>Sky.Library.Text</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Windows\Sky.Library.Windows.csproj">
+      <Project>{becc4fa5-bef6-4ac9-9118-7dc08f9251ee}</Project>
+      <Name>Sky.Library.Windows</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Application\Sky.ProGate.Application.Objects\Sky.ProGate.Application.Objects.csproj">
+      <Project>{a4f974bc-b51b-4456-aa43-c63ffb996694}</Project>
+      <Name>Sky.ProGate.Application.Objects</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Sky.ProGate.Service.Objects\Sky.ProGate.Service.Objects.csproj">
+      <Project>{6d2ae85e-6650-4f00-b6bf-b282f0f52465}</Project>
+      <Name>Sky.ProGate.Service.Objects</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

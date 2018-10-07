@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A4F974BC-B51B-4456-AA43-C63FFB996694}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Sky.ProGate.Application.Objects</RootNamespace>
+    <AssemblyName>Sky.ProGate.Application.Objects</AssemblyName>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>
+    </DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Application\Application.cs" />
+    <Compile Include="Application\Calendar.cs" />
+    <Compile Include="Application\Category.cs" />
+    <Compile Include="Application\CostCenter.cs" />
+    <Compile Include="Application\LineItem.cs" />
+    <Compile Include="Application\Object.cs" />
+    <Compile Include="Application\Planning.cs" />
+    <Compile Include="Application\PlanningRate.cs" />
+    <Compile Include="Application\Person.cs" />
+    <Compile Include="Application\CalendarWeek.cs" />
+    <Compile Include="Global\ConfigFile.cs" />
+    <Compile Include="Global\Global.cs" />
+    <Compile Include="Application\Project.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Arrays\Sky.Library.Arrays.csproj">
+      <Project>{093724c3-fba2-407e-a0ad-df4ef97030c3}</Project>
+      <Name>Sky.Library.Arrays</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Files\Sky.Library.Files.csproj">
+      <Project>{eaedd599-8ff0-493b-aab3-d020caf0e035}</Project>
+      <Name>Sky.Library.Files</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Forms\Sky.Library.Forms.csproj">
+      <Project>{2f69c6b5-1de4-4acf-a584-1408a4de309b}</Project>
+      <Name>Sky.Library.Forms</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.SBM\Sky.Library.SBM.csproj">
+      <Project>{2544d861-21ad-4c18-99f3-e01127b17353}</Project>
+      <Name>Sky.Library.SBM</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Text\Sky.Library.Text.csproj">
+      <Project>{154909fd-12fb-4807-950e-432100e97481}</Project>
+      <Name>Sky.Library.Text</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Windows\Sky.Library.Windows.csproj">
+      <Project>{becc4fa5-bef6-4ac9-9118-7dc08f9251ee}</Project>
+      <Name>Sky.Library.Windows</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\Sky.Library.Xml\Sky.Library.Xml.csproj">
+      <Project>{919a4bfe-5596-4fc8-96d4-a5782984c585}</Project>
+      <Name>Sky.Library.Xml</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

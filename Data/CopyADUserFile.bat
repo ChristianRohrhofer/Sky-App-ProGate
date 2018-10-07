@@ -1,0 +1,1 @@
+copy \\p-m-sbm1.pfad.biz\D_Daten_SBM\ADUser\ADDump_sky.csv C:\Development\ProGate\Data /Y

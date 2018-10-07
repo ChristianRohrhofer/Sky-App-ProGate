@@ -1,0 +1,1657 @@
+
+using System;
+using System.Collections;
+using System.IO;
+using System.Text;
+using System.Reflection;
+using System.Diagnostics;
+using Sky.Xml;
+using Sky.SBM;
+using Sky.SAP.OrgChart;
+
+
+namespace Sky.Orga.ImportSBMOrgaData
+{
+    public class Program
+    {
+        #region Members
+
+        protected const string
+            FileName_CfgFile = @"Sky\Orga\ImportSBMOrgaData\Sky.Orga.ImportSBMOrgaData.Config.xml",
+            FolName_Log = @"Sky.Orga.Log.%dat%",
+            FileName_Log = @"Sky.Orga.Log.csv",
+            FileName_LogADUsr = @"AD.Users.csv",
+            FileName_LogSAPObj = @"SAP.Objects.csv",
+            FileName_LogSAPRef = @"SAP.References.csv",
+            Fmt_FileDat = "yyyyMMddHHmmss",
+            Svr_Usr = "sky_orga_admin",
+            Svr_Pwd = "126043a656552a205b5cc5f4",
+            NodName_Root = "ImportSBMOrgaDataConfig",
+            NodName_SvrName = "ServerName",
+            NodName_ImpADUsrs = "ImportADUsers",
+            NodName_CleanUsrs = "CleanUsers",
+            NodName_ImpSAPOrgCha = "ImportSAPOrgChart",
+            NodName_CleanItems = "CleanItems",
+            NodName_RunTskMod = "RunTaskMode",
+            NodName_ADUsrFile = "ADUserFile",
+            NodName_DefUsr = "DefaultUser",
+            NodName_DefGrp = "DefaultGroup",
+            NodName_SAPObjFile = "SAPObjectFile",
+            NodName_SAPRefFile = "SAPReferenceFile",
+            NodName_Log_FileLogPath = "FileLogPath",
+            Sep_CfgFile_Ln = "#",
+            Sep_CfgFile_Val = ";",
+            Sep_ADUsrFile_Ln = "\r\n",
+            Sep_ADUsrFile_Val = ";",
+            Sep_ADUsrPat_Ln = "#",
+            Sep_ADUsrPat_Val = ";",
+            Ser_ADUsrInf = "%last%, %first%",
+            Ser_Usr = "%name%",
+            Ser_SAPObj = "%typ%|%name%",
+            Ser_Item = "%typ%|%name%",
+            TabName_OrgChas = "USR_PROCAP_ORGCHARTS",
+            TabName_Units = "USR_PROCAP_UNITS",
+            TabName_Poss = "USR_PROCAP_POSITIONS",
+            TabName_Pers = "USR_PROCAP_PERSONS",
+            TabName_CosCens = "USR_PROCAP_COSTCENTERS",
+            TabName_ActLogs = "USR_PROCAP_ACTION_LOGS",
+            FldName_Num = "NUMBER",
+            FldName_StartDat = "START_DATE",
+            FldName_EndDat = "END_DATE",
+            FldName_OrgCha = "ORGCHART",
+            FldName_Units = "UNITS",
+            FldName_Poss = "POSITIONS",
+            FldName_Pers = "PERSONS",
+            FldName_CosCens = "COST_CENTERS",
+            FldName_LeadPos = "LEAD_POSITION",
+            FldName_Usr = "USER",
+            FldName_ActTyp = "ACTION_TYPE",
+            FldName_Sta = "STATUS",
+            FldVal_Name_Null = "(None)",
+            FldVal_ActLog_Tit = "%typ% %dat%",
+            FldVal_ActTyp_ImpSBMOrgDat = "Import SBM Orga Data",
+            FldVal_OrgCha_Name = "Sky",
+            FldVal_Null = "(Null)",
+            SQLWhere_OrgCha_Num = "TS_NUMBER = %val%",
+            SQLWhere_All = "TS_ID > 0",
+            SQLOrdBy_All = "TS_ID",
+            FileLogHdr_Tsk = "Task",
+            FileLogHdr_ObjIdent = "Object",
+            FileLogHdr_FileName = "File",
+            FileLogHdr_LnNum = "Line",
+            FileLogHdr_ImpObjIdent = "Import Object",
+            FileLogHdr_Act = "Action",
+            FileLogHdr_Sta = "Status",
+            FileLogHdr_Msg = "Message",
+            EvLogName = "Sky Orga",
+            EvLogSrc = "ImportSBMOrgaData";
+
+        protected const int
+            Svr_Timeout = 1000,
+            FldVal_OrgCha_Num = 1,
+            FldVal_Num_Null = 0;
+
+        protected const string
+            ConMsg_StartTsk = "--> Started: %tsk%, Time: %dat%, Version: %ver%",
+            ConMsg_FinTsk = "--> Finished: %tsk%, Time: %dat%, Version: %ver%",
+            ConMsg_TskStep = "%step%/%cnt%: %tsk%: '%obj%', %sta%",
+            EvLogMsg_ImpSBMOrgDat = "-> Import SBM Orga Data: Started: %start%" + Sep_EvLogMsg_Paras + "Finished: %fin%" + Sep_EvLogMsg_Paras + "Duration: %dur%",
+            EvLogMsg_Tsk = "-> %name%\r\n      Run: %run%\r\n      Actions: %act%\r\n      Status: %sta%",
+            EvLogMsg_Name = "Task '%tsk%' with %cnt% objects:",
+            EvLogMsg_Run = "Started: %start%" + Sep_EvLogMsg_Paras + "Finished: %fin%" + Sep_EvLogMsg_Paras + "Duration: %dur%",
+            EvLogMsg_Act = "%name%: %cnt%",
+            EvLogMsg_Sta = "%name%: %cnt%",
+            EvLogMsg_Exc = "!! Excpetion: %msg%",
+            Sep_EvLogMsg_Tsk = "\r\n\r\n",
+            Sep_EvLogMsg_Paras = ", ",
+            InfMsg_ADUsrNotPer = "AD user '%usr%' is not a person",
+            ErrMsg_ItemFldNotExi = "Item field '%fld%' of item '%item%' does not exist",
+            ErrMsg_DefUsrNotExi = "Default user '%usr%' does not exist",
+            WarnMsg_ADUsrOvw = "AD user '%usr%' overwrites manual SBM user",
+            ErrMsg_ObjKeyExi = "Object '%obj%' with key '%key%' already exists in the object table",
+            ErrMsg_UsrSAPNumNotUni = "User '%usr%' with SAP number '%num%' is not unique",
+            ErrMsg_ItemTypNum = "Item '%item%' of type '%ty%' and number '%num%' is not unique",
+            ErrMsg_InvSAPObjTyp = "Invalid type '%typ%' of SAP object '%obj%'",
+            ErrMsg_TabNotExi = "Table '%tab%' does not exists",
+            ErrMsg_PerNumNotUni = "SAP person personnel number '%num%' is not unique in the AD users",
+            WarnMsg_SAPObjParNotExi = "Parent of SAP object '%obj%' does not exist",
+            WarnMsg_SAPObjParNotUni = "Parent of SAP object '%obj%' is not unique";
+
+        public enum enRunTaskMode { None = 0, Try, Execute }
+
+        #endregion Members
+
+        #region Main
+
+        static void Main(string[] ArgArr)
+        {
+
+//TEST Area52(); return;
+
+            DateTime
+                dtStart = DateTime.MinValue,
+                dtFin = DateTime.MinValue;
+            TaskInfo
+                ImpADUsrsTsk = null,
+                CleanUsrsTsk = null,
+                ImpSAPOrgChaTsk = null,
+                CleanItemsTsk = null,
+                TskInf = null;
+            enRunTaskMode
+                RunTskMod = enRunTaskMode.None;
+            Server
+                Svr = null;
+            string
+                sCfgFileName = null,
+                sLogPath = null,
+                sLogFolName = null,
+                sLogFileName = null,
+                sSvrName = null,
+                sDefUsrLogID = null,
+                sADUsrFileName = null,
+                sSAPObjFileName = null,
+                sSAPRefFileName = null;
+            bool
+                bImpADUsrs = false,
+                bCleanUsrs = false,
+                bImpSAPOrgCha = false,
+                bCleanItems = false;
+            Hashtable
+                UsrTab = null,
+                ItemTab = null;
+            AuxiliaryItem
+                ActLog = null;
+            object[]
+                ResValMat = null;
+            TaskInfo[] 
+                TskInfArr = null;
+            string[]
+                EvLogMsgArr = null;
+            Result.enStatus
+                SumSta = Result.enStatus.Ok;
+            Exception
+                TskExc = null;
+
+            try
+            {
+                //--- Get the start date
+                dtStart = DateTime.Now;
+
+                //--- Get the config filename and read the config file
+                sCfgFileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), FileName_CfgFile);
+                ReadConfigFile
+                    (
+                        sCfgFileName,
+                        out bImpADUsrs,
+                        out bCleanUsrs,
+                        out bImpSAPOrgCha,
+                        out bCleanItems,
+                        out RunTskMod,
+                        out sSvrName,
+                        out sADUsrFileName,
+                        out sDefUsrLogID,
+                        out sSAPObjFileName,
+                        out sSAPRefFileName,
+                        out sLogPath
+                    );
+
+                //--- Check run tasks
+                if (RunTskMod == enRunTaskMode.None)
+                    return;
+
+                //--- Get the log folder name and create the log folder
+                sLogFolName = Path.Combine(sLogPath, FolName_Log).Replace("%dat%", dtStart.ToString(Fmt_FileDat));
+                Directory.CreateDirectory(sLogFolName);
+
+                //--- Init the server and init the action log
+                Svr = new Server(sSvrName, Svr_Usr, Svr_Pwd, true, null, Svr_Timeout);
+                ActLog = NewActionLog(Svr, dtStart);
+
+                //--- Check import AD users task
+                if (bImpADUsrs)
+                {
+                    //--- Run the import AD users task
+                    ImportADUsers
+                            (
+                                RunTskMod,
+                                Svr,
+                                sDefUsrLogID,
+                                sADUsrFileName,
+                                sLogFolName,
+                                out ImpADUsrsTsk,
+                                out UsrTab
+                            );
+
+                    //--- Check clean users
+                    if (bCleanUsrs)
+                    {
+                        //--- Run the clean users task
+                        CleanUsers
+                            (
+                                RunTskMod,
+                                Svr,
+                                UsrTab,
+                                out CleanUsrsTsk
+                            );
+                    }
+                }
+
+                //--- Check import SAP org-chart
+                if (bImpSAPOrgCha)
+                {
+                    //--- Run the import SAP org-chart task
+                    ImportSAPOrgChart
+                            (
+                                RunTskMod,
+                                Svr,
+                                sSAPObjFileName,
+                                sSAPRefFileName,
+                                sLogFolName,
+                                dtStart,
+                                out ImpSAPOrgChaTsk,
+                                out ItemTab
+                            );
+
+                    //--- Check clean items
+                    if (bCleanItems)
+                    {
+                        //--- Run the clean items task
+                        CleanItems
+                              (
+                                  RunTskMod,
+                                  Svr,
+                                  ItemTab,
+                                  out CleanItemsTsk
+                              );
+                    }
+                }
+            }
+            catch (Exception Exc)
+            {
+                //--- Write the exception console message
+                WriteConsoleMessage(Exc);
+
+                //--- Set the task excpetion and the error sum status
+                TskExc = Exc;
+                SumSta = Result.enStatus.Error;
+            }
+
+            try
+            {
+                //--- Get the finished date
+                dtFin = DateTime.Now;
+
+                //--- Check server exists
+                if (Svr != null)
+                {
+                    //--- Update the action log if exists
+                    if (ActLog != null)
+                        UpdateActionLog(ActLog, SumSta, dtFin);
+
+                    //--- Dispose the server
+                    Svr.Dispose();
+                }
+
+                //--- Init the task infos and get the log filename
+                TskInfArr = new TaskInfo[] { ImpADUsrsTsk, CleanUsrsTsk, ImpSAPOrgChaTsk, CleanItemsTsk };
+                sLogFileName = !String.IsNullOrEmpty(sLogFolName) ? Path.Combine(sLogFolName, FileName_Log) : null;
+
+                //--- Init the the result headers
+                ResValMat = new object[]
+                                {
+                                    new string[]
+                                        {
+                                            FileLogHdr_Tsk,
+                                            FileLogHdr_ObjIdent,
+                                            FileLogHdr_FileName,
+                                            FileLogHdr_LnNum,
+                                            FileLogHdr_ImpObjIdent,
+                                            FileLogHdr_Act,
+                                            FileLogHdr_Sta,
+                                            FileLogHdr_Msg
+                                        }
+                                };
+
+                //--- Init the event log messages
+                EvLogMsgArr = new string[]
+                                {
+                                    EvLogMsg_ImpSBMOrgDat
+                                                .Replace("%start%", dtStart.ToString())
+                                                .Replace("%fin%", dtFin.ToString())
+                                                .Replace("%dur%", TaskInfo.RoundTimeSpanToSeconds(dtFin - dtStart).ToString())
+                                };
+
+                //--- Calculate the task statistics and get the maximum status
+                for (int nTskIdx = 0; nTskIdx < TskInfArr.Length; nTskIdx++)
+                {
+                    //--- Get the task info and check exists
+                    if ((TskInf = TskInfArr[nTskIdx]) == null)
+                        continue;
+
+                    //--- Calculate the statistics and add the result values to the result value matrix
+                    TskInf.CalculateStatistics();
+                    Arrays.Array.Add(ref ResValMat, TskInf.ToResultValueMatrix());
+
+                    //--- Add the event log message to the event log messages and get the maximum event log status
+                    AddEventLogMessage(ref EvLogMsgArr, TskInf);
+                    SumSta = TaskInfo.GetSumStatus(SumSta, TskInf.ResultSumStatus);
+                }
+
+                //--- Write the result values to the log file if the log filename exists
+                if (!String.IsNullOrEmpty(sLogFileName))
+                    Files.Files.GenerateCsvFile(sLogFileName, ResValMat);
+            }
+            catch (Exception Exc)
+            {
+                //--- Write the exception console message
+                WriteConsoleMessage(Exc);
+
+                //--- Set the task excpetion and the error sum status
+                TskExc = Exc;
+                SumSta = Result.enStatus.Error;
+            }
+
+            //--- Write the event log message to the event log
+            WriteEventLogEntry
+                        (
+                            (EvLogMsgArr != null ? String.Join(Sep_EvLogMsg_Tsk, EvLogMsgArr) : null) +
+                            Sep_EvLogMsg_Tsk +
+                            (TskExc != null ? EvLogMsg_Exc.Replace("%msg%", TskExc.Message) : null), 
+                            SumSta
+                        );
+        }
+
+        #endregion Main
+
+        #region Tasks
+
+        protected static void ImportADUsers
+                                    (
+                                        enRunTaskMode RunTskMod,
+                                        Server Svr, 
+                                        string sDefUsrLogID, 
+                                        string sADUsrFileName,
+                                        string sLogFolName,
+                                        out TaskInfo TskInf,
+                                        out Hashtable UsrTab
+                                    )
+        {
+            ADUserInfo[] ADUsrInfArr;
+            ADUserInfo ADUsrInf;
+            User Usr, DefUsr;
+            Result Res;
+
+            //--- Init the import AD users task and  write the console task start message
+            TskInf = new TaskInfo(TaskInfo.enTaskType.ImportADUsers, true);
+            WriteConsoleMessage(ConMsg_StartTsk, TskInf.TaskName, TskInf.Started);
+
+            //--- Log the AD user file and read the AD users
+            sADUsrFileName = LogImportFile(sADUsrFileName, sLogFolName, FileName_LogADUsr);
+            ADUsrInfArr = ReadADUserInfos(sADUsrFileName);
+
+            //--- Read the users with the login ID and get the default user
+            UsrTab = ReadUsersByLoginIDKey(Svr);
+            DefUsr = GetDefaultUser(UsrTab, sDefUsrLogID);
+
+            //--- Import the AD users
+            for (int nIdx = 1; nIdx < ADUsrInfArr.Length; nIdx++)
+            {
+                //--- Get the AD user and clear the user
+                ADUsrInf = ADUsrInfArr[nIdx];
+
+                //--- Clear the user and the result
+                Usr = null;
+                Res = null;
+
+                //--- Check person AD user
+                if (ADUsrInf.IsPersonUser())
+                {
+                    //--- Find the user with the AD user info login ID
+                    if ((Usr = FindUserByKey(UsrTab, ToUserKeyByLoginID(ADUsrInf), true)) == null)
+                    {
+                        //--- Init the user and set the profile values
+                        Usr = Svr.NewUser();
+                        SetUserProfileValues(Usr, DefUsr);
+                    }
+
+                    //--- Init a new result
+                    Res = TskInf.AddResult(ToUserString(Usr), sADUsrFileName, nIdx, ToADUserInfoString(ADUsrInf));
+
+                    //--- Check user exists and is not an Active Directory user
+                    if ((Usr.GetID() != 0) && !IsActiveDirectoryUser(Usr))
+                        Res.UpdateStatus(Result.enStatus.Warning, WarnMsg_ADUsrOvw.Replace("%usr%", ToUserString(Usr)));
+
+                    //--- Set the user ident values
+                    SetUserIdentValues(Usr, DefUsr, ADUsrInf);
+
+                    //--- Check user has an ID
+                    if (Usr.GetID() == 0)
+                    {
+                        //--- Create the user if execute run task mode
+                        if (RunTskMod == enRunTaskMode.Execute)
+                            CreateUser(Usr, Res);
+
+                        //--- Add the user to the AD user users and set the created action
+                        Res.Action = Result.enAction.Created;
+                    }
+                    else
+                    {
+                        //--- Update the user if execute run task mode
+                        if (RunTskMod == enRunTaskMode.Execute)
+                            UpdateUser(Usr, Res);
+
+                        //--- Set the updated action
+                        Res.Action = Result.enAction.Updated;
+                    }
+                }
+                else
+                {
+                    //--- Add a new result
+                    Res = TskInf.AddResult
+                                (
+                                    null,
+                                    sADUsrFileName,
+                                    nIdx,
+                                    ToADUserInfoString(ADUsrInf),
+                                    Result.enAction.Skipped,
+                                    Result.enStatus.Ok,
+                                    InfMsg_ADUsrNotPer.Replace("%usr%", ToADUserInfoString(ADUsrInf))
+                                );
+                }
+
+                //--- Write the task step message
+                WriteConsoleMessage(nIdx + 1, ADUsrInfArr.Length, TskInf.TaskName, ToADUserInfoString(ADUsrInf), Res.Status);
+            }
+
+            //--- Finish the import AD users task and write the console message
+            TskInf.Finish();
+            WriteConsoleMessage(ConMsg_FinTsk, TskInf.TaskName, TskInf.Finished);
+        }
+
+        protected static void CleanUsers
+                                (
+                                    enRunTaskMode RunTskMod, 
+                                    Server Svr, 
+                                    Hashtable UsrTab,
+                                    out TaskInfo TskInf
+                                )
+        {
+            ADUserInfo ADUsrInf;
+            Result Res;
+            int nIdx;
+
+            //--- Init the clean users task and write the console message
+            TskInf = new TaskInfo(TaskInfo.enTaskType.CleanUsers, true);
+            WriteConsoleMessage(ConMsg_StartTsk, TskInf.TaskName, TskInf.Started);
+
+            //--- Init the index
+            nIdx = 1;
+
+            //--- Clean the users
+            foreach (User Usr in UsrTab.Values)
+            {
+                //--- Init and tag a new result and init an AD user info
+                Res = TskInf.AddResult(ToUserString(Usr));
+                ADUsrInf = new ADUserInfo();
+
+                //--- Check user is deleted and from the AD source
+                if (Usr.IsDeleted() ? false : ADUsrInf.FromMemo(Usr.GetEmailCC()))
+                {
+                    //--- Set the deleted flag and delete the user
+                    Usr.SetDeleted(true);
+
+                    //--- Delete the user if execute run task mode
+                    if (RunTskMod == enRunTaskMode.Execute)
+                        UpdateUser(Usr, Res);
+
+                    //--- Set the deleted action
+                    Res.Action = Result.enAction.Deleted;
+                }
+                //--- Set the skipped action
+                else
+                    Res.Action = Result.enAction.Skipped;
+
+                //--- Write the task step message
+                WriteConsoleMessage(nIdx++, UsrTab.Count, TskInf.TaskName, ToUserString(Usr), Res.Status);
+            }
+
+            //--- Finish the clean users task and write the console message
+            TskInf.Finish();
+            WriteConsoleMessage(ConMsg_FinTsk, TskInf.TaskName, TskInf.Finished);
+        }
+
+        protected static void ImportSAPOrgChart
+                                    (
+                                        enRunTaskMode RunTskMod, 
+                                        Server Svr,
+                                        string sSAPObjFileName,
+                                        string sSAPRefFileName,
+                                        string sLogFolName,
+                                        DateTime dtNow,
+                                        out TaskInfo TskInf,
+                                        out Hashtable ItemTab
+                                    )
+        {
+            OrgChart SAPOrgCha;
+            SAP.OrgChart.Object SAPObj;
+            ObjectCollection SAPObjCol;
+            Table Tab;
+            AuxiliaryItem OrgCha, Item;
+            Hashtable UsrTab;
+            Result Res;
+
+            //--- Init the import SAP org-objects task and write the console message
+            TskInf = new TaskInfo(TaskInfo.enTaskType.ImportSAPOrgChart, true);
+            WriteConsoleMessage(ConMsg_StartTsk, TskInf.TaskName, TskInf.Started);
+
+            /*TEST
+            //--- Log the SAP import files
+sSAPObjFileName = LogSAPImportFile_Hupfer(@"C:\Development\Sky.Orga\Data\Hupfer.Objects.csv", sLogFolName, FileName_LogSAPObj);
+sSAPRefFileName = LogSAPImportFile_Hupfer(@"C:\Development\Sky.Orga\Data\Hupfer.References.csv", sLogFolName, FileName_LogSAPRef);
+            */
+
+            sSAPObjFileName = LogSAPImportFile(sSAPObjFileName, sLogFolName, FileName_LogSAPObj);
+            sSAPRefFileName = LogSAPImportFile(sSAPRefFileName, sLogFolName, FileName_LogSAPRef);
+
+            //--- Read the SAP org-chart and get the SAP objects
+            SAPOrgCha = ReadSAPOrgChart(sSAPObjFileName, sSAPRefFileName);
+            SAPObjCol = SAPOrgCha.GetAllObjects();
+
+            //--- Read the users with the SAP number and read the items
+            UsrTab = ReadUsersBySAPNumber(Svr);
+            ItemTab = ReadItems(Svr);
+
+            //--- Get the org-chart table
+            Tab = GetTable(Svr, TabName_OrgChas);
+
+            //--- Init a new org-chart if not exists
+            if ((OrgCha = FindItemByKey(ItemTab, ToItemKey(Tab, FldVal_OrgCha_Num), true)) == null)
+                OrgCha = Tab.NewAuxiliaryItem();
+
+            //--- Set the values and add the result
+            SetOrgChartItemValues(OrgCha);
+            Res = TskInf.AddResult(ToItemString(OrgCha));
+
+            //--- Check orga chart exists
+            if (OrgCha.GetID() == 0)
+            {
+                //--- Create the orga chart if execute runt task mode
+                if (RunTskMod == enRunTaskMode.Execute)
+                    CreateItem(OrgCha, Res);
+
+                //--- Set the created action
+                Res.Action = Result.enAction.Created;
+            }
+            else
+            {
+                //--- Update the orga chart item if execute runt task mode
+                if (RunTskMod == enRunTaskMode.Execute)
+                    UpdateItem(OrgCha, Res);
+
+                //--- Set the updated action
+                Res.Action = Result.enAction.Updated;
+            }
+
+            //--- Write the task step message
+            WriteConsoleMessage(1, 1, TskInf.TaskName, ToItemString(OrgCha), Res.Status);
+
+            //--- Import the SAP objects
+            for (int nIdx = 0; nIdx < SAPObjCol.Count; nIdx++)
+            {
+                //--- Get the SAP object
+                SAPObj = SAPObjCol[nIdx];
+
+                //--- Check inactive SAP object
+                if (IsSAPObjectActive(SAPObj, dtNow))
+                {
+                    //--- Clear the items and the result
+                    Item = null;
+                    Res = null;
+
+                    //--- Get the table
+                    Tab = GetTableBySAPObjectType(Svr, SAPObj.ObjectType);
+
+                    //--- Find the item with the SAP obejct type and the SAP object number
+                    if ((Item = FindItemByKey(ItemTab, ToItemKey(Tab, SAPObj.ObjectNumber), true)) == null)
+                        Item = Tab.NewAuxiliaryItem();
+
+                    //--- Set the person or item values dependend on the SAP object type anf get the active flag
+                    if (SAPObj.ObjectType == SAP.OrgChart.Object.enObjectType.Person)
+                        SetPersonValues(Item, SAPObj, OrgCha, UsrTab, dtNow);
+                    else
+                        SetItemValues(Item, SAPObj, OrgCha, dtNow);
+
+                    //--- Init and tag a new result                
+                    Item.Tag = Res = TskInf.AddResult(ToItemString(Item), sSAPObjFileName, nIdx, ToSAPObjectString(SAPObj));
+
+                    //--- Check item exists
+                    if (Item.GetID() == 0)
+                    {
+                        //--- Create the item if the execute run task mode
+                        if (RunTskMod == enRunTaskMode.Execute)
+                            CreateItem(Item, Res);
+
+                        //--- Set the created action
+                        Res.Action = Result.enAction.Created;
+                    }
+                    //--- Set the updated action
+                    else
+                        Res.Action = Result.enAction.Updated;
+
+                    //--- Tag the SAP object with the item and write the task step message
+                    SAPObj.Tag = Item;
+                }
+            }
+
+            //--- Set the item references 
+            SetItemReferences(SAPOrgCha.OrgChartObjects, OrgCha, OrgCha, dtNow);
+
+            //--- Update the orga if execute run task mode
+            if (RunTskMod == enRunTaskMode.Execute)
+                UpdateItem(OrgCha, Res);
+
+            //--- Update the items
+            for (int nIdx = 0; nIdx < SAPObjCol.Count; nIdx++)
+            {
+                //--- Get the SAP object
+                SAPObj = SAPObjCol[nIdx];
+
+                //--- Get the item and check exists
+                if ((Item = (AuxiliaryItem)SAPObj.Tag) == null)
+                    continue;
+
+                //--- Get the tagged result
+                Res = (Result)Item.Tag;
+
+                //--- Set the item references  if the lead positions exists
+                if (SAPObj.LeadPosition != null)
+                    SetItemReference(Item, FldName_LeadPos, (AuxiliaryItem)SAPObj.LeadPosition.Tag);
+
+                //--- Update the item if execute run task mode
+                if (RunTskMod == enRunTaskMode.Execute)
+                    UpdateItem(Item, Res);
+
+                //--- Write the console message
+                WriteConsoleMessage(nIdx + 1, SAPObjCol.Count, TskInf.TaskName, ToItemString(Item), Res.Status);
+            }
+
+            //--- Finish the import SAP org-chart task and write the console message
+            TskInf.Finish();
+            WriteConsoleMessage(ConMsg_FinTsk, TskInf.TaskName, TskInf.Finished);
+        }
+
+        protected static void SetItemReferences(ObjectCollection SAPObjCol, AuxiliaryItem Item, AuxiliaryItem OrgCha, DateTime dtNow)
+        {
+            SAP.OrgChart.Object SAPObj;
+            AuxiliaryItem LstItem;
+            string sFldName;
+            ItemIdentList IdentLst;
+            ItemField Fld;
+
+            //--- Clear the references field
+            ClearItemReferences(Item, FldName_Units);
+            ClearItemReferences(Item, FldName_Poss);
+            ClearItemReferences(Item, FldName_Pers);
+            ClearItemReferences(Item, FldName_CosCens);
+
+            //--- Import the SAP objects
+            for (int nIdx = 0; nIdx < SAPObjCol.Count; nIdx++)
+            {
+                //--- Get the SAP object
+                SAPObj = SAPObjCol[nIdx];
+
+                //--- Get the item and check exists
+                if ((LstItem = (AuxiliaryItem)SAPObj.Tag) == null)
+                    continue;
+
+                //--- Get the field name
+                sFldName = 
+                    SAPObj.ObjectType == SAP.OrgChart.Object.enObjectType.Unit ? FldName_Units :
+                    SAPObj.ObjectType == SAP.OrgChart.Object.enObjectType.Position ? FldName_Poss :
+                    SAPObj.ObjectType == SAP.OrgChart.Object.enObjectType.Person ? FldName_Pers :
+                    SAPObj.ObjectType == SAP.OrgChart.Object.enObjectType.CostCenter ? FldName_CosCens :
+                    null;
+
+                //--- Get the field and get the idents or init the item-idents if null value
+                Fld = GetItemField(Item, sFldName);
+                IdentLst = Fld.GetItemIdentValues();
+
+                //--- Add the new ident and set the idents
+                IdentLst.Add(new ItemIdent(LstItem));
+                Fld.SetItemIdentValues(IdentLst);
+
+                //--- Set the item references 
+                SetItemReferences(SAPObj.OrgChartObjects, LstItem, OrgCha,  dtNow);
+            }
+        }
+
+        protected static void CleanItems
+                                    (
+                                        enRunTaskMode RunTskMod,
+                                        Server Svr,
+                                        Hashtable ItemTab,
+                                        out TaskInfo TskInf
+                                    )
+        {
+            Result Res;
+            int nIdx;
+
+            //--- Init the clean items task and write the console message
+            TskInf = new TaskInfo(TaskInfo.enTaskType.CleanItems, true);
+            WriteConsoleMessage(ConMsg_StartTsk, TskInf.TaskName, TskInf.Started);
+
+            //--- Clear the index
+
+            nIdx = 1;
+
+            //--- Delete the items
+            foreach (AuxiliaryItem Item in ItemTab.Values)
+            {
+                //--- Get the item and init the status and the action
+                Res = TskInf.AddResult(ToItemString(Item));
+
+                //--- Update the item if execute run task mode
+                if (RunTskMod == enRunTaskMode.Execute)
+                    DeleteItem(Item, Res);
+
+                //--- Set the deleted action
+                Res.Action = Result.enAction.Deleted;
+
+                //--- Write the task step message
+                WriteConsoleMessage(nIdx++, ItemTab.Count, TskInf.TaskName, ToItemString(Item), Res.Status);
+            }
+
+            //--- Finish the import SAP org-chart task and write the console message
+            TskInf.Finish();
+            WriteConsoleMessage(ConMsg_FinTsk, TskInf.TaskName, TskInf.Finished);
+        }
+
+        #endregion Tasks
+
+        #region ConfigFile
+
+        protected static void ReadConfigFile
+                                    (
+                                        string sCfgFileName,
+                                        out bool bImpADUsrs,
+                                        out bool bCleanUsrs,
+                                        out bool bImpSAPOrgCha,
+                                        out bool bCleanItems,
+                                        out enRunTaskMode RunTskMod,
+                                        out string sSvrName,
+                                        out string sADUsrFlieName,
+                                        out string sDefUsrLogID,
+                                        out string sObjFileName,
+                                        out string sRefFileName,
+                                        out string sFileLogPath
+                                    )
+        {
+            XmlTree CfgFile;
+
+            //--- Get the config filename and read the config file
+            CfgFile = new XmlTree(sCfgFileName);
+
+            //--- Check the root name
+            if (CfgFile.Root.Name != NodName_Root)
+                throw new XmlInvalidNodeValueException(CfgFile.Root);
+
+            //--- Get the config values
+            bImpADUsrs = Convert.ToBoolean(GetConfigValue(CfgFile, NodName_ImpADUsrs));
+            bCleanUsrs = Convert.ToBoolean(GetConfigValue(CfgFile, NodName_CleanUsrs));
+            bImpSAPOrgCha = Convert.ToBoolean(GetConfigValue(CfgFile, NodName_ImpSAPOrgCha));
+            bCleanItems = Convert.ToBoolean(GetConfigValue(CfgFile, NodName_CleanItems));
+            RunTskMod = (enRunTaskMode)Enum.Parse(typeof(enRunTaskMode), GetConfigValue(CfgFile, NodName_RunTskMod), true);
+            sSvrName = GetConfigValue(CfgFile, NodName_SvrName);
+            sADUsrFlieName = GetConfigValue(CfgFile, NodName_ADUsrFile);
+            sDefUsrLogID = GetConfigValue(CfgFile, NodName_DefUsr);
+            sObjFileName = GetConfigValue(CfgFile, NodName_SAPObjFile);
+            sRefFileName = GetConfigValue(CfgFile, NodName_SAPRefFile);
+            sFileLogPath = GetConfigValue(CfgFile, NodName_Log_FileLogPath);
+        }
+
+        protected static string GetConfigValue(XmlTree CfgFile, string sNodName, bool bMustExi = true)
+        {
+            XmlNode Nod;
+
+            //--- Get the node
+            if ((Nod = CfgFile.Root.Nodes.FindByName(sNodName)) == null)
+                throw new XmlNodeMissingException(CfgFile.Root, sNodName);
+
+            //--- Get the value exists and must exist
+            if (String.IsNullOrEmpty(Nod.Value) && bMustExi)
+                throw new XmlInvalidNodeValueException(Nod);
+
+            //--- Get the node value
+            return Nod.Value;
+        }
+
+        #endregion ConfigFile
+
+        #region Users
+
+        protected static string ToUserString(User Usr)
+        { return Usr != null ? Ser_Usr.Replace("%name%", ToSerializeValue(Usr.GetDisplayName())) : null; }
+
+        public delegate object ToObjectKey(object objObj);
+
+        protected static Hashtable ReadUsersByLoginIDKey(Server Svr)
+        { return ReadUsers(Svr, ToUserKeyByLoginID); }
+
+        protected static Hashtable ReadUsersBySAPNumber(Server Svr)
+        { return ReadUsers(Svr, ToUserKeyBySAPNumber); }
+
+        protected static Hashtable ReadUsers(Server Svr, ToObjectKey ToObjKey)
+        {
+            Hashtable UsrTab;
+            UserList UsrLst;
+            User Usr, ElemUsr;
+            object objKey;
+
+            //--- Read the users
+            UsrLst = Svr.NewUserList();
+            UsrLst.ReadAllUsers();
+
+            //--- Init the user table
+            UsrTab = new Hashtable();
+
+            //--- Add the users to the user table
+            for (int nIdx = 0; nIdx < UsrLst.Count; nIdx++)
+            {
+                //--- Get the user
+                Usr = UsrLst[nIdx];
+
+                //--- Get the key and check exists
+                if ((objKey = ToObjKey(Usr)) == null)
+                    continue;
+
+                //--- Check user exists
+                if ((ElemUsr = FindUserByKey(UsrTab, objKey)) != null)
+                    throw new SBMException(ErrMsg_ObjKeyExi.Replace("%obj%", ToUserString(ElemUsr)).Replace("%key%", Convert.ToString(objKey)));
+
+                //--- Add the user to the user table
+                UsrTab.Add(objKey, Usr);
+            }
+
+            return UsrTab;
+        }
+
+        protected static object ToUserKeyByLoginID(object objUsr)
+        { return !(objUsr is User) ? null : ((User)objUsr)?.GetLoginID().ToUpper(); }
+
+        protected static object ToUserKeyByLoginID(ADUserInfo ADUsrInf)
+        { return ADUsrInf?.LoginID.ToUpper(); }
+
+        protected static object ToUserKeyBySAPNumber(object objUsr)
+        {
+            ADUserInfo ADUsrInf;
+
+            //--- Init the AD user info
+            ADUsrInf = new ADUserInfo();
+
+            //--- Check object exists and user object and has meme
+            if (objUsr == null ? true : !(objUsr is User) ? true : !ADUsrInf.FromMemo(((User)objUsr).GetEmailCC()))
+                return null;
+
+            //--- Get the user personnel number if exists
+            return ADUsrInf.PersonnelNumber == 0 ? null : (object)ADUsrInf.PersonnelNumber;
+        }
+
+        protected static User FindUserByKey(Hashtable UsrTab, object objKey, bool bRmv = false)
+        {
+            User Usr;
+
+            //--- Find the user with the key
+            if ((Usr = (User)UsrTab[objKey]) == null)
+                return null;
+
+            //--- Remove the user if needed
+            if (bRmv)
+                UsrTab.Remove(objKey);
+
+            return Usr;
+        }
+
+        protected static User GetDefaultUser(Hashtable UsrTab, string sDefUsrLogID)
+        {
+            User DefUsr;
+
+            //--- Find the default user
+            if ((DefUsr = FindUserByKey(UsrTab, sDefUsrLogID, true)) == null)
+                throw new SBMException(ErrMsg_DefUsrNotExi.Replace("%usr%", sDefUsrLogID));
+
+            return DefUsr;
+        }
+
+        protected static void CreateUser(User Usr, Result Res)
+        {
+            //--- Create the user or update the result
+            try
+            { Usr.Create(); }
+            catch (Exception Exc)
+            { Res.UpdateStatus(Exc); }
+        }
+
+        protected static void UpdateUser(User Usr, Result Res)
+        {
+            //--- Update the user or the result
+            try
+            { Usr.Update(); }
+            catch (Exception Exc)
+            { Res.UpdateStatus(Exc); }
+        }
+
+        protected static bool IsActiveDirectoryUser(User Usr)
+        { return ADUserInfo.ParseMemo(Usr.GetEmailCC()) != null; }
+
+        protected static void SetUserIdentValues(User Usr, User DefUsr, ADUserInfo ADUsrInf)
+        {
+            IDList GrpIDLst, DefGrpIDLst;
+            int nID;
+
+            //--- Set ident values
+            Usr.SetLoginID(ADUsrInf.LoginID.ToUpper());
+            Usr.SetDisplayName(ADUsrInf.DisplayName);
+            Usr.SetPhoneNumber(ADUsrInf.TelephoneNumber);
+            Usr.SetEmail(ADUsrInf.Email);
+            Usr.SetEmailCC(ADUsrInf.ToMemo());
+
+            //--- Get the group IDs
+            GrpIDLst = Usr.GetGroupIDs();
+            DefGrpIDLst = DefUsr.GetGroupIDs();
+
+            //--- Add the default group IDs to the group IDs
+            for (int nIdx = 0; nIdx < DefGrpIDLst.Count; nIdx++)
+            {
+                //--- Get the default group ID
+                nID = DefGrpIDLst[nIdx];
+
+                //--- Add the default group ID to the group IDs if not exists
+                if (!GrpIDLst.Contains(nID))
+                    GrpIDLst.Add(nID);
+            }
+
+            //--- Set the group IDs
+            Usr.SetGroupIDs(GrpIDLst);
+
+            //--- Set the default access type if the default access type is more
+            if (DefUsr.GetAccessType() > Usr.GetAccessType())
+                Usr.SetAccessType(DefUsr.GetAccessType());
+
+            //--- Set the deleted flag
+            Usr.SetDeleted(DefUsr.IsDeleted());
+        }
+
+        protected static void SetUserProfileValues(User Usr, User DefUsr)
+        {
+            //--- Set the profile values
+            Usr.SetChangeHistoryMask(DefUsr.GetChangeHistoryMask());
+            Usr.SetDatePreference(DefUsr.GetDatePreference());
+            Usr.SetTimePreference(DefUsr.GetTimePreference());
+            Usr.SetOffsetFromGMT(DefUsr.GetOffsetFromGMT());
+            Usr.SetTimeZone(DefUsr.GetTimeZone());
+            Usr.SetLocale(DefUsr.GetLocale());
+            Usr.SetDstSavings(DefUsr.GetDstSavings());
+            Usr.SetBrowserMask(DefUsr.GetBrowserMask());
+            Usr.SetFieldsMask(DefUsr.GetFieldsMask());
+            Usr.SetNotesMask(DefUsr.GetNotesMask());
+            Usr.SetMaxChangeHistory(DefUsr.GetMaxChangeHistory());
+            Usr.SetMaxItemsPerPage(DefUsr.GetMaxItemsPerPage());
+            Usr.SetMaxNotes(DefUsr.GetMaxNotes());
+            Usr.SetNamespaceName(DefUsr.GetNamespaceName());
+        }
+
+        #endregion Users
+
+        #region ADUsers
+
+        protected static string ToADUserInfoString(ADUserInfo ADUsrInf)
+        { return ADUsrInf != null ? Ser_ADUsrInf.Replace("%last%", ToSerializeValue(ADUsrInf.LastName)).Replace("%first%", ToSerializeValue(ADUsrInf.FirstName)) : null; }
+
+        protected static ADUserInfo FindADUserInfoByLoginID(ADUserInfo[] ADUsrInfArr, string sLogID)
+        {
+            ADUserInfo ADUsrInf;
+
+            //--- Find the AD user
+            for (int nIdx = 0; nIdx < ADUsrInfArr.Length; nIdx++)
+            {
+                //--- Get the AD user
+                ADUsrInf = ADUsrInfArr[nIdx];
+
+                //--- Compare login IDs
+                if (ADUsrInf.LoginID == sLogID)
+                    return ADUsrInf;
+            }
+
+            return null;
+        }
+
+        protected static ADUserInfo[] ReadADUserInfos(string sADUsrFileName)
+        {
+            object[] ValMat;
+            string[] ValArr;
+            ADUserInfo ADUsrInf;
+            ADUserInfo[] ADUsrInfArr;
+
+            //--- Parse the AD user value matrix and init the AD user infos
+            ValMat = Files.Files.ParseCsvFile(sADUsrFileName, Sep_ADUsrFile_Ln, Sep_ADUsrFile_Val);
+            ADUsrInfArr = new ADUserInfo[ValMat.Length];
+
+            //--- Add the AD user infos
+            for (int nIdx = 0; nIdx < ValMat.Length; nIdx++)
+            {
+                //--- Get the values
+                ValArr = (string[])ValMat[nIdx];
+
+                //--- Init the AD user info and get the values from the AD user file
+                ADUsrInfArr[nIdx] = ADUsrInf = new ADUserInfo();
+                ADUsrInf.FromFile(ValArr);
+            }
+
+            return ADUsrInfArr;
+        }
+
+        #endregion ADUsers
+
+        #region SAPObjects
+
+        protected static string ToSAPObjectString(SAP.OrgChart.Object Obj)
+        {
+            return 
+                Obj != null ? 
+                Ser_SAPObj.Replace("%typ%", ToSerializeValue(Obj.ObjectType.ToString())).Replace("%name%", ToSerializeValue(Obj.LongName)) : 
+                null;
+        }
+
+        protected static SAP.OrgChart.Object.enObjectType ParseSAPObjectType(string sObjTyp)
+        { return (SAP.OrgChart.Object.enObjectType)Enum.Parse(typeof(SAP.OrgChart.Object.enObjectType), sObjTyp); }
+
+        protected static OrgChart ReadSAPOrgChart(string sObjFileName, string sRefFileName)
+        {
+            OrgChart OrgCha;
+            SAP.OrgChart.Object Obj;
+            ObjectCollection ObjCol;
+
+            //--- Init and read the SAP org-chart
+            OrgCha = new OrgChart();
+            OrgCha.ReadSAPFiles(sObjFileName, sRefFileName);
+
+            //--- Get the org-chart objects
+            ObjCol = OrgCha.GetAllOrgChartObjects();
+
+            //--- Remove the object where an org-chart not exists
+            for (int nIdx = OrgCha.Objects.Count - 1; nIdx >= 0; nIdx--)
+            {
+                //--- Get the object
+                Obj = OrgCha.Objects[nIdx];
+
+                //--- Remove the object if an org-chart not exists
+                if (ObjCol.FindByObjectKey(Obj.ObjectType, Obj.ObjectNumber) == null)
+                    OrgCha.RemoveObject(Obj);
+            }
+
+            return OrgCha;
+        }
+
+        protected static bool IsSAPObjectActive(SAP.OrgChart.Object SAPObj, DateTime dtNow)
+        {
+            //--- Check now date is between start date and end date
+            return
+                (dtNow >= (SAPObj.StartDate == OrgChart.NullDate ? DateTime.MinValue : SAPObj.StartDate)) &&
+                (dtNow <= (SAPObj.EndDate == OrgChart.NullDate ? DateTime.MaxValue : SAPObj.EndDate));
+        }
+
+        protected static string LogSAPImportFile_Hupfer(string sImpFileName, string sLogFolName, string sLogFileName)
+{
+    sLogFileName = Path.Combine(sLogFolName, sLogFileName);
+    File.Copy(sImpFileName, sLogFileName);
+
+    return sLogFileName;
+}
+
+        protected static string LogSAPImportFile(string sImpFileName, string sLogFolName, string sLogFileName)
+        {
+            string sTxt;
+
+            //--- Read the SAP file text and convert from Utf-7 in default encoding
+            sTxt = File.ReadAllText(sImpFileName, Encoding.UTF7);
+            sTxt = Encoding.Default.GetString(Encoding.Convert(Encoding.UTF7, Encoding.Default, Encoding.UTF7.GetBytes(sTxt)));
+
+            //--- Get the log filename and write the import filename
+            sLogFileName = Path.Combine(sLogFolName, sLogFileName);
+            File.WriteAllText(sLogFileName, sTxt.Replace(Text.Char.LineFeed.ToString(), Text.Char.NewLine));
+
+            return sLogFileName;
+        }
+
+        #endregion SAPObjects
+
+        #region Items
+
+        protected static string ToItemString(AuxiliaryItem Item)
+        {
+            string sTabName;
+
+            //--- Get the table name without ProCap label and in singular
+            sTabName = Item.Table.GetDisplayName();
+            sTabName = sTabName.Substring(0, sTabName.Length - 1).Replace("ProCap", null).Replace(" ", null);
+
+            //--- Get the item string
+            return Item != null ? Ser_Item.Replace("%typ%", sTabName).Replace("%name%", ToSerializeValue(Item.GetTitle())) : null;
+        }
+
+        protected static Table GetTableBySAPObjectType(Server Svr, SAP.OrgChart.Object.enObjectType SAPObjTyp)
+        {
+            string sTabName;
+
+            //--- Get the table name dependend on the SAP object type
+            if (SAPObjTyp == SAP.OrgChart.Object.enObjectType.Unit)
+                sTabName = TabName_Units;
+            else if (SAPObjTyp == SAP.OrgChart.Object.enObjectType.Position)
+                sTabName = TabName_Poss;
+            else if (SAPObjTyp == SAP.OrgChart.Object.enObjectType.Person)
+                sTabName = TabName_Pers;
+            else if (SAPObjTyp == SAP.OrgChart.Object.enObjectType.CostCenter)
+                sTabName = TabName_CosCens;
+            else
+                return null;
+
+            //--- Get the orga table
+            return GetTable(Svr, sTabName);
+        }
+
+        protected static AuxiliaryItem ReadOrgChart(Server Svr)
+        {
+            AuxiliaryItem OrgCha;
+
+            //--- Init and read the org-chart
+            OrgCha = GetTable(Svr, TabName_OrgChas).NewAuxiliaryItem();
+            OrgCha.ReadByQuery(SQLWhere_OrgCha_Num.Replace("%val%", FldVal_OrgCha_Num.ToString()), false, true);
+
+            return OrgCha;
+        }
+
+        protected static void UpdateOrgChartItem(AuxiliaryItem Item)
+        {
+            //--- Set the item values
+            SetItemNumber(Item, FldVal_OrgCha_Num);
+            Item.SetTitle(FldVal_OrgCha_Name);
+            Item.SetActive(true);
+        }
+
+        protected static Hashtable ReadItems(Server Svr)
+        {
+            Hashtable ItemTab;
+            ItemList ItemLst;
+
+            //--- Init the items and the item table
+            ItemLst = new ItemList(Svr);
+            ItemTab = new Hashtable();
+
+            //--- Read the items
+            ItemLst.Add(ReadItems(Svr, ItemTab, TabName_OrgChas));
+            ItemLst.Add(ReadItems(Svr, ItemTab, TabName_Units));
+            ItemLst.Add(ReadItems(Svr, ItemTab, TabName_Poss));
+            ItemLst.Add(ReadItems(Svr, ItemTab, TabName_Pers));
+            ItemLst.Add(ReadItems(Svr, ItemTab, TabName_CosCens));
+
+            return ItemTab;
+        }
+
+        protected static ItemList ReadItems(Server Svr, Hashtable ItemTab, string sTabName)
+        {
+            ItemList ItemLst;
+            AuxiliaryItem Item, ElemItem;
+            int nKey;
+
+            //--- Init and read the item list
+            ItemLst = Svr.NewItemList(GetTable(Svr, sTabName));
+            ItemLst.ReadBySQL(SQLWhere_All, SQLOrdBy_All);
+
+            //--- Add the itenm to the item table
+            for (int nIdx = 0; nIdx < ItemLst.Count; nIdx++)
+            {
+                //--- Get the item
+                Item = (AuxiliaryItem)ItemLst[nIdx];
+
+                //--- Get the key and check exists
+                if ((nKey = ToItemKey(Item)) == -1)
+                    continue;
+
+                //--- Check item exists
+                if ((ElemItem = FindItemByKey(ItemTab, ToItemKey(Item))) != null)
+                    throw new SBMException(ErrMsg_ObjKeyExi.Replace("%obj%", ToItemString(ElemItem)).Replace("%key%", nKey.ToString()));
+
+                //--- Add the item to the item table
+                AddItemByKey(ItemTab, nKey, Item);
+            }
+
+            return ItemLst;
+        }
+
+        protected static int ToItemKey(AuxiliaryItem Item)
+        { return ToItemKey(Item.Table, GetItemNumber(Item));}
+
+        protected static int ToItemKey(Table Tab, int nNum)
+        {
+            //--- Check table and number exists
+            if (Tab == null ? true : nNum == -1) 
+                return -1;
+
+            //--- Get the item
+            return (Tab.GetID() << 16) + nNum;
+        }
+
+        protected static AuxiliaryItem FindItemByKey(Hashtable ItemTab, int nKey, bool bRmv = false)
+        {
+            AuxiliaryItem Item;
+
+            //--- Find the user with the key
+            if ((Item = (AuxiliaryItem)ItemTab[nKey]) == null)
+                return null;
+
+            //--- Remove the user if needed
+            if (bRmv)
+                ItemTab.Remove(nKey);
+
+            return Item;
+        }
+
+        protected static void AddItemByKey(Hashtable ItemTab, int nKey, AuxiliaryItem Item)
+        { ItemTab.Add(nKey, Item); }
+
+        protected static void SetOrgChartItemValues(AuxiliaryItem OrgCha)
+        {
+            //--- Set the title and the number and the active flag
+            OrgCha.SetTitle(FldVal_OrgCha_Name);
+            SetItemNumber(OrgCha, FldVal_OrgCha_Num);
+            OrgCha.SetActive(true);
+        }
+
+        protected static void SetItemValues
+                                    (
+                                        AuxiliaryItem Item, 
+                                        SAP.OrgChart.Object SAPObj, 
+                                        AuxiliaryItem OrgCha, 
+                                        DateTime dtNow
+                                    )
+        {
+            //--- Set the item name and the active flag
+            Item.SetTitle(SAPObj.LongName);
+            Item.SetActive(true);
+
+            //--- Set the item field values
+            SetItemNumber(Item, SAPObj.ObjectNumber);
+            SetItemDate(Item, FldName_StartDat, SAPObj.StartDate, false);
+            SetItemDate(Item, FldName_EndDat, SAPObj.EndDate, false);
+            SetItemReference(Item, FldName_OrgCha, OrgCha);
+        }
+
+        protected static void ClearItemReferences(AuxiliaryItem Item, string sFldName)
+        {
+            ItemField Fld;
+
+            //--- Get the field and set the null value if the fiels exists
+            if ((Fld = Item.Fields.FindByDatabaseName(sFldName)) != null)
+                Fld.SetNullValue();
+        }
+
+        protected static void SetPersonValues
+                                    (
+                                        AuxiliaryItem Per,
+                                        SAP.OrgChart.Object SAPPer,
+                                        AuxiliaryItem OrgCha,
+                                        Hashtable UsrTab,
+                                        DateTime dtNow
+                                    )
+        {
+            User Usr;
+
+            //--- Set the item values
+            SetItemValues(Per, SAPPer, OrgCha, dtNow);
+
+            //--- Get the user if exists and is not deleted
+            Usr =
+                (Usr = FindUserByKey(UsrTab, SAPPer.ObjectNumber)) == null ? null :
+                !Usr.IsDeleted() ? Usr :
+                null;
+
+            //--- Set the user and the active flag if teh user exists
+            SetItemUser(Per, Usr);
+            Per.SetActive(Usr != null);
+        }
+
+        protected static void CreateItem(AuxiliaryItem Item, Result Res = null)
+        {
+            //--- Create the item or update the result
+            try
+            { Item.Create(); }
+            catch (Exception Exc)
+            {
+                //--- Update the result if exists
+                if (Res != null)
+                    Res.UpdateStatus(Exc);
+            }
+        }
+
+        protected static void UpdateItem(AuxiliaryItem Item, Result Res = null)
+        {
+            //--- Update the user or the result
+            try
+            { Item.Update(); }
+            catch (Exception Exc)
+            {
+                //--- Update the result if exists
+                if (Res != null)
+                    Res.UpdateStatus(Exc);
+            }
+        }
+
+        protected static void DeleteItem(AuxiliaryItem Item, Result Res = null)
+        {
+            //--- Delete the user or the result
+            try
+            { Item.Delete(); }
+            catch (Exception Exc)
+            {
+                //--- Update the result if exists
+                if (Res != null)
+                    Res.UpdateStatus(Exc);
+            }
+        }
+
+        #endregion Items
+
+        #region Logging
+
+        protected static AuxiliaryItem NewActionLog(Server Svr, DateTime dtNow)
+        {
+            AuxiliaryItem ActLog;
+
+            //--- Init the action log
+            ActLog = GetTable(Svr, TabName_ActLogs).NewAuxiliaryItem();
+
+            //--- Set the values
+            ActLog.SetTitle(FldVal_ActLog_Tit.Replace("%typ%", FldVal_ActTyp_ImpSBMOrgDat).Replace("%dat%", dtNow.ToString()));
+            SetItemSelection(ActLog, FldName_ActTyp, FldVal_ActTyp_ImpSBMOrgDat);
+            SetItemDate(ActLog, FldName_StartDat, dtNow, true);
+
+            //--- Create the action log
+            CreateItem(ActLog);
+
+            return ActLog;
+        }
+
+        protected static void UpdateActionLog(AuxiliaryItem ActLog, Result.enStatus Sta, DateTime dtNow)
+        {
+            //--- Set the action log values
+            SetItemSelection(ActLog, FldName_Sta, Sta == Result.enStatus.None ? null : Sta.ToString());
+            SetItemDate(ActLog, FldName_EndDat, dtNow, true);
+
+            //--- Update the action log
+            UpdateItem(ActLog);
+        }
+
+        protected static Table GetTable(Server Svr, string sTabName)
+        {
+            Table Tab;
+
+            //--- Get the table
+            if ((Tab = Svr.Tables.FindByDatabaseName(sTabName)) == null)
+                throw new SBMException(ErrMsg_TabNotExi.Replace("%tab%", sTabName));
+
+            return Tab;
+        }
+
+        protected static int GetItemNumber(AuxiliaryItem Item)
+        { return GetItemField(Item, FldName_Num).GetIntegerValue(); }
+
+        protected static void SetItemNumber(AuxiliaryItem Item, int nNum)
+        { GetItemField(Item, FldName_Num).SetIntegerValue(nNum); }
+
+        protected static DateTime GetItemDate(AuxiliaryItem Item, string sFldName, bool bTime)
+        {
+            ItemField Fld;
+
+            //--- Get the field and check null value
+            Fld = GetItemField(Item, sFldName);
+
+            //--- Check null value and field type
+            return
+                Fld.IsNullValue() ? OrgChart.NullDate : 
+                bTime ? Fld.GetDateTimeValue() :
+                Fld.GetDateOnlyValue();
+        }
+
+        protected static void SetItemDate(AuxiliaryItem Item, string sFldName, DateTime dtDat, bool bTime)
+        {
+            ItemField Fld;
+
+            //--- Get the field
+            Fld = GetItemField(Item, sFldName);
+
+            //--- Set the null value or the date time or the date value
+            if (OrgChart.IsNullDate(dtDat))
+                Fld.SetNullValue();
+            else if (bTime)
+                Fld.SetDateTimeValue(dtDat);
+            else
+                Fld.SetDateOnlyValue(dtDat);
+        }
+
+        protected static void SetItemUser(AuxiliaryItem Item, User Usr)
+        { GetItemField(Item, FldName_Usr).SetIDValue(Usr == null ? 0 : Usr.GetID()); }
+
+        protected static void SetItemSelection(AuxiliaryItem Item, string sFldName, string sSel = null)
+        { GetItemField(Item, sFldName).SetDisplayValue(sSel); }
+
+        protected static void SetItemReference(AuxiliaryItem Item, string sFldName, AuxiliaryItem RefItem)
+        { GetItemField(Item, sFldName).SetItemIdentValue(RefItem == null ? null : RefItem.ToItemIdent()); }
+
+        protected static ItemField GetItemField(AuxiliaryItem Item, string sFldName)
+        {
+            ItemField Fld;
+
+            //--- Get the field and check exists
+            if ((Fld = Item.Fields.FindByDatabaseName(sFldName)) == null)
+                throw new SBMException(ErrMsg_ItemFldNotExi.Replace("%fld%", sFldName).Replace("%item%", ToItemString(Item)));
+
+            return Fld;
+        }
+
+        #endregion Logging
+
+        #region Logging
+
+        protected static string LogImportFile(string sImpFileName, string sLogFolName, string sLogFileName)
+        {
+            //--- Get the log filename and copy the import file to the log filename
+            sLogFileName = Path.Combine(sLogFolName, sLogFileName);
+            File.Copy(sImpFileName, sLogFileName);
+
+            return sLogFileName;
+        }
+
+        protected static void AddEventLogMessage(ref string[] EvLogMsgArr, TaskInfo TskInf)
+        {
+            //--- Add the event log message to the event log messages
+            Arrays.Array.Add
+                    (
+                        ref EvLogMsgArr,
+                        EvLogMsg_Tsk
+                                .Replace("%name%", EvLogMsg_Name
+                                                        .Replace("%tsk%", TskInf.TaskName)
+                                                        .Replace("%cnt%", TskInf.Results.Length.ToString()))
+                                .Replace("%run%", EvLogMsg_Run
+                                                        .Replace("%start%", TskInf.IsStarted ? TskInf.Started.ToString() : FldVal_Null)
+                                                        .Replace("%fin%", TskInf.IsFinished ? TskInf.Finished.ToString() : FldVal_Null)
+                                                        .Replace("%dur%", (TskInf.HasDuration ? TskInf.Duration : TimeSpan.Zero).ToString()))
+                                .Replace("%act%", String.Join(Sep_EvLogMsg_Paras, TskInf.GetActionCountMessages(EvLogMsg_Act)))
+                                .Replace("%sta%", String.Join(Sep_EvLogMsg_Paras, TskInf.GetStatusCountMessages(EvLogMsg_Sta)))
+                    );
+        }
+
+        protected static void WriteEventLogEntry(string sMsg, Result.enStatus Sta)
+        {
+            EventLog EvLog;
+
+            //--- Init the event log messages and the event log
+            EvLog = new EventLog(EvLogName);
+            EvLog.Source = EvLogSrc;
+
+            //--- Write the event log messages
+            EvLog.WriteEntry
+                    (
+                        sMsg,
+                        Sta == Result.enStatus.Ok ? EventLogEntryType.Information :
+                        Sta == Result.enStatus.Warning ? EventLogEntryType.Warning :
+                        Sta == Result.enStatus.Error ? EventLogEntryType.Error :
+                        EventLogEntryType.FailureAudit
+                    );
+        }
+
+        #endregion Logging
+
+        #region Messages
+
+        protected static void WriteConsoleMessage(string sMsg)
+        { Console.WriteLine(sMsg.Replace("%dat%", DateTime.Now.ToString())); }
+
+        protected static void WriteConsoleMessage(Exception Exc)
+        { WriteConsoleMessage(Exc.Message); }
+
+        protected static void WriteConsoleMessage(string sMsg, string sTskName, DateTime dtTimeStp)
+        {
+            //--- Write console message
+            WriteConsoleMessage
+                    (
+                        sMsg
+                            .Replace("%tsk%", sTskName)
+                            .Replace("%dat%", dtTimeStp.ToString())
+                            .Replace("%ver%", Windows.Windows.GetRunningApplicationVersion().ToString())
+                    );
+        }
+
+        protected static void WriteConsoleMessage(int nStep, int nCnt, string sTskName, string sActObjIdent, Result.enStatus Sta)
+        {
+            //--- Write console message
+            WriteConsoleMessage
+                    (
+                        ConMsg_TskStep
+                            .Replace("%step%", nStep.ToString())
+                            .Replace("%cnt%", nCnt.ToString())
+                            .Replace("%tsk%", sTskName)
+                            .Replace("%obj%", sActObjIdent)
+                            .Replace("%sta%", Sta.ToString())
+                    );
+        }
+
+        #endregion Messages
+
+        #region Helpers
+
+        protected static string ToSerializeValue(string sVal)
+        { return String.IsNullOrEmpty(sVal) ? FldVal_Null : sVal; }
+
+        #endregion Helpers
+
+
+
+
+
+        static void Area52()
+        {
+            Server Svr;
+            AuxiliaryItem Item;
+            string sLog;
+            int nID;
+            object objVal;
+
+            try
+            {
+                Svr = new Server("p-m-sbm3.pfad.biz", "sky_orga_admin", "skyorgaadmin", false, null, 600);
+                Item = Svr.Tables.FindByDatabaseName("USR_PROCAP_DRYDOCK").NewAuxiliaryItem();
+
+                Item.ReadByID(10);
+                objVal = Item.Fields.FindByDisplayName("Single Relational").IsNullValue();
+                sLog = Area52_Tester(Item);
+
+                Item.ReadByID(1);
+                sLog = Area52_Tester(Item);
+
+
+
+                Item.Create();
+
+                Item.Delete();
+                Svr.Dispose();
+
+                return;
+            }
+            catch (Exception Exc)
+            { string EXC = Exc.Message; }
+        }
+
+        static string Area52_Tester(AuxiliaryItem Item)
+        {
+            string[]
+                MethNameArr =
+                    {
+                        "IsValueEmpty",
+                        "IsNullValue",
+                        "GetIntegerValue",
+                        "GetFloatValue",
+                        "GetBinaryValue",
+                        "GetTextValue",
+                        "GetDateTimeValue",
+                        "GetDateOnlyValue",
+                        "GetTimeValue",
+                        "GetIDValue",
+                        "GetIDValues",
+                        "GetItemIdentValue",
+                        "GetItemIdentValues",
+                        "GetDisplayValue",
+                        "GetDisplayValues"
+                    };
+
+            ItemField Fld;
+            string sMethName, sLog;
+            object objVal;
+
+            sLog = null;
+
+            for (int nFldIdx = 0; nFldIdx < Item.Fields.Count; nFldIdx++)
+            {
+                Fld = Item.Fields[nFldIdx];
+                sLog += "\r\n--> " + Fld.Field.GetDisplayName() + "\r\n";
+
+                if (Fld.Field.GetFieldType() == Field.enFieldType.SubRelational)
+                    continue;
+
+                for (int nMethIdx = 0; nMethIdx < MethNameArr.Length; nMethIdx++)
+                {
+                    sMethName = MethNameArr[nMethIdx];
+
+                    try
+                    { objVal = Fld.GetType().GetMethod(sMethName).Invoke(Fld, null); }
+                    catch(Exception Exc)
+                    { objVal = ">> " + Exc.InnerException.Message; }
+
+                    sLog += sMethName.PadRight(25, ' ') + ": " + Area52_ToValueString(objVal) + "\r\n";
+                }
+            }
+
+            return sLog;
+        }
+
+        static string Area52_ToValueString(object objVal)
+        {
+            if (objVal is IDList)
+                return String.Join(",", Array.ConvertAll(((IDList)objVal).ToArray(), Convert.ToString));
+            else
+                return Convert.ToString(objVal);
+        }
+
+    }
+}
+
+

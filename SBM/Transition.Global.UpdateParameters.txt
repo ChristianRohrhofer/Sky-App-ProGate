@@ -1,0 +1,123 @@
+
+
+	'--- Get the project end date
+	If Not GetItemFieldValue(Shell.Item, FldName_ProCapPrj_PrjEndDat, PrjEndDat) Then
+		Exit Function
+	End If
+	'--- Get the capitalization start date
+	If Not GetItemFieldValue(Shell.Item, FldName_ProCapPrj_CapStartDat, CapStartDat) Then
+		Exit Function
+	End If
+	'--- Get the capitalization end date
+	If Not GetItemFieldValue(Shell.Item, FldName_ProCapPrj_CapEndDat, CapEndDat) Then
+		Exit Function
+	End If
+	'--- Check capitalization start date less then project start date
+	If IsDateLessThan(CapStartDat, PrjStartDat) Then
+		Shell.RedoMessage = ErrMsg_CapStartBefPrjStart
+		Exit Function
+	End If
+	'--- Check capitalization start date less then capitalization end date
+	If IsDateLessThan(CapStartDat, CapEndDat) Then
+		Shell.RedoMessage = ErrMsg_CapEndBefCapStart		
+		Exit Function
+	End If
+	'--- Check project end date less then capitalization end date
+	If IsDateLessThan(PrjEndDat, CapEndDat) Then
+		Shell.RedoMessage = ErrMsg_PrjEndBefCapEnd
+		Exit Function
+	End If
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	'--- Read the planning list
+	If Not ReadAppRecordList(TabName_Plan, Replace(SQL_Plan_PrjId, "%id%", CStr(Shell.Item.GetId)), PlanItemLst) Then
+		Exit Function
+	End If
+	'--- Get the ressource ID list
+	If Not GetItemFieldValue(Shell.Item, FldName_ProCapPrj_Ress, ResIdLst) Then
+		Exit Function
+	End If
+	'--- Init the index
+	Idx = 2
+	'--- Update the plannings
+	Do
+		'--- Parse the next ressource id
+   		If Not ParseNextId(ResIdLst, Idx, ResId) Then
+			Exit Function
+		End If
+		'--- Check ressource Id not exists
+		If ResId = -1 Then
+			Exit Do
+		End If
+		'--- Find the planning
+		If Not FindAppRecordByFieldValue(PlanItemLst, FldName_Plan_Res, ResId, PlanItem) Then
+			Exit Function
+		End If
+		'--- Check planning exist
+		If PlanItem Is Nothing Then
+			'--- Create the planning item
+			If Not CreateAuxiliaryItem(TabName_Plan, PlanItem) Then
+				Exit Function
+			End If
+			'--- Get the project number
+			If Not GetItemFieldValue(Shell.Item, FldName_ItemId, PrjNum) Then
+				Exit Function
+			End If
+			'--- Read the ressource item
+			If Not ReadAuxiliaryItem(TabName_Per, Replace(SQL_Res_Id, "%id%", CStr(ResId)), ResItem) Then
+				Exit Function
+			End If
+			'--- Get the number
+			If Not GetItemFieldValue(ResItem, FldName_Per_Num, ResNum) Then
+				Exit Function
+			End If
+			'--- Set the name
+			If Not SetItemFieldValue(PlanItem, FldName_Tit, Replace(Replace(FldVal_Plan_Name, "%prj%", PrjNum), "%res%", CStr(ResNum))) Then
+				Exit Function
+			End If
+			'--- Set the project Id
+			If Not SetItemFieldValue(PlanItem, FldName_Plan_Prj, CStr(Shell.Item.GetId)) Then
+				Exit Function
+			End If
+			'--- Set the ressource Id
+			If Not SetItemFieldValue(PlanItem, FldName_Plan_Res, CStr(ResId)) Then
+				Exit Function
+			End If
+			'---- Add the planning item
+			If Not AddItem(PlanItem, PlanId) Then
+				Exit Function
+			End If
+		Else
+			'--- Tag the planning item
+			If Not SetItemFieldValue(PlanItem, FldName_Plan_Tag, Tag_Done) Then
+				Exit Function
+			End If
+		End If
+	Loop
+	'--- Delete the not existing plannings
+	For Each PlanItem In PlanItemLst
+		'--- Get the tag
+		If Not GetItemFieldValue(PlanItem, FldName_Plan_Tag, Val) Then
+			Exit Function
+		End If
+		'--- Check not tagged
+		If Val <> Tag_Done Then
+			'---- Delete the planning item
+			If Not DeleteItem(PlanItem) Then
+				Exit Function
+			End If
+		End If
+	Next
+

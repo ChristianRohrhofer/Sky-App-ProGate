@@ -1,0 +1,2 @@
+copy \\p-m-sbm1.pfad.biz\D_Daten_SBM\SAPCostCenters\orgobj.20181006030552.csv C:\Development\ProGate\Data\orgobj /Y
+copy \\p-m-sbm1.pfad.biz\D_Daten_SBM\SAPCostCenters\orgver.20181006030552.csv C:\Development\ProGate\Data\orgver /Y
