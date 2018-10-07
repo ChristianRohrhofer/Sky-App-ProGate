@@ -29,6 +29,7 @@ namespace Sky.ProGate.Service.Objects
             FldName_OrgObj_Num = "NUMBER",
             FldName_OrgObj_StartDat = "START_DATE",
             FldName_OrgObj_EndDat = "END_DATE",
+            FldName_Pos_JobID = "JOB_ID",
             FldName_Per_Usr = "USER",
             FldName_ChaObj_Units = "UNITS",
             FldName_ChaObj_Poss = "POSITIONS",
@@ -228,8 +229,17 @@ return true;
                 SetOrgObjectItemDate(OrgObjItem, FldName_OrgObj_StartDat, SAPOrgObj.StartDate);
                 SetOrgObjectItemDate(OrgObjItem, FldName_OrgObj_EndDat, SAPOrgObj.EndDate);
 
+                //--- Check position object type
+                if (SAPOrgObj.ObjectType == OrgObject.enObjectType.Position)
+                {
+                    try
+                    { GetSBMItemFieldByDatabaseName(OrgObjItem, FldName_Pos_JobID).SetIntegerValue(Convert.ToInt32(SAPOrgObj.ShortName)); }
+                    catch(Exception Exc)
+                    {; }
+                }
+                    
                 //--- Check person object type
-                if (SAPOrgObj.ObjectType == OrgObject.enObjectType.Person)
+                else if (SAPOrgObj.ObjectType == OrgObject.enObjectType.Person)
                 {
                     //--- Get the user
                     Usr = (User)UsrTab[SAPOrgObj.ObjectNumber];
@@ -284,10 +294,10 @@ return true;
             ItemField Fld = null;
 
             //--- Clear the chart object references fields
-            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_Units);
-            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_Poss);
-            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_Pers);
-            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_CosCens);
+            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_Units);
+            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_Poss);
+            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_Pers);
+            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_CosCens);
 
             //--- Import the SAP objects
             for (int nIdx = 0; nIdx < SAPChaObjLst.Count; nIdx++)
@@ -308,8 +318,11 @@ return true;
                 else
                     throw new Exception(ErrMsg_InvSAPObjTyp.Replace("%typ%", SAPChaObj.OrgObject.ObjectType.ToString()));
 
-                //--- Get the items idents and add the new item ident and set the item ident
-                IdentLst = GetSBMItemFieldByDatabaseName(OrgObjItem, sFldName).GetItemIdentValues();
+                //--- Get the field and the items idents
+                Fld = GetSBMItemFieldByDatabaseName(OrgObjItem, sFldName);
+                IdentLst = Fld.GetItemIdentValues();
+
+                //--- Add the chart object item ident and set the item idents
                 IdentLst.Add(new ItemIdent(ChaObjItem));
                 Fld.SetItemIdentValues(IdentLst);
 

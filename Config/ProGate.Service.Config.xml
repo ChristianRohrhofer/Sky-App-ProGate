@@ -29,8 +29,8 @@
 			<EndTime>240000</EndTime>
 			<ObjectFile>C:\Development\ProGate\Data\orgobj</ObjectFile>
 			<ReferenceFile>C:\Development\ProGate\Data\orgver</ReferenceFile>
-			<LastRunDate>20181007121711</LastRunDate>
-			<LastRunDuration>010539</LastRunDuration>
+			<LastRunDate>20181007231541</LastRunDate>
+			<LastRunDuration>012658</LastRunDuration>
 		</ImportSAPOrgChartTask>
 	</Tasks>
 </ProGate.Service.Config>
