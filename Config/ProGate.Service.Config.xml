@@ -32,5 +32,14 @@
 			<LastRunDate>20181007231541</LastRunDate>
 			<LastRunDuration>012658</LastRunDuration>
 		</ImportSAPOrgChartTask>
+		<CleanUpTask>
+			<Name>Clean Up</Name>
+			<Active>True</Active>
+			<StartTime>000000</StartTime>
+			<EndTime>240000</EndTime>
+			<CleanUpFile>C:\Development\ProGate\Data\CleanUp.txt</CleanUpFile>
+			<LastRunDate>20181007094806</LastRunDate>
+			<LastRunDuration>003716</LastRunDuration>
+		</CleanUpTask>
 	</Tasks>
 </ProGate.Service.Config>

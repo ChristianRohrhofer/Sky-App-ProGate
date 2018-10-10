@@ -29,7 +29,7 @@ namespace Sky.ProGate.Service.Objects
             FldName_OrgObj_Num = "NUMBER",
             FldName_OrgObj_StartDat = "START_DATE",
             FldName_OrgObj_EndDat = "END_DATE",
-            FldName_Pos_JobID = "JOB_ID",
+            FldName_Pos_JobID = "JOB_ID_TEXT",
             FldName_Per_Usr = "USER",
             FldName_ChaObj_Units = "UNITS",
             FldName_ChaObj_Poss = "POSITIONS",
@@ -56,44 +56,74 @@ namespace Sky.ProGate.Service.Objects
             ProgMsg_SkipOrgObj = "Skip %typ% with number '%num%' and name '%name%'",
             ErrMsg_InvSAPObjTyp = "Invalid SAP object type '%typ%'";
 
-        protected FileWatcher SAPObjectFileWatcher { get; set; } = null;
-        protected FileWatcher SAPReferenceFileWatcher { get; set; } = null;
+        protected FileWatcher ObjectFileWatcher { get; set; } = null;
+        protected FileWatcher ReferenceFileWatcher { get; set; } = null;
+        protected bool 
+            IsObjectFileChanged = Global.BooleanNull,
+            IsReferenceFileChanged = Global.BooleanNull;
 
         public ImportSAPOrgaChartTask(ServiceTarget SvcTar)
             : base(SvcTar, TaskID, NodName_Tsk)
         {
             //--- Init the SAP file watcher
-            SAPObjectFileWatcher = new FileWatcher(ServiceTarget.ConfigFile.GetString(GetConfigNodePath(NodName_ObjFile), true));
-            SAPReferenceFileWatcher = new FileWatcher(ServiceTarget.ConfigFile.GetString(GetConfigNodePath(NodName_RefFile), true));
+            ObjectFileWatcher = new FileWatcher(ServiceTarget.ConfigFile.GetString(GetConfigNodePath(NodName_ObjFile), true));
+            ReferenceFileWatcher = new FileWatcher(ServiceTarget.ConfigFile.GetString(GetConfigNodePath(NodName_RefFile), true));
+
+            //--- Set the event handlers
+            ObjectFileWatcher.FileCreated += OnObjectFileChanged;
+            ObjectFileWatcher.FileUpdated += OnObjectFileChanged;
+            ReferenceFileWatcher.FileCreated += OnReferenceFileChanged;
+            ReferenceFileWatcher.FileUpdated += OnReferenceFileChanged;
         }
 
         #endregion Members
 
+        #region Events
+
+        protected void OnObjectFileChanged(object sender, FileWatcherEventArgs e)
+        { CheckFiledChanged(ref IsObjectFileChanged); }
+
+        protected void OnReferenceFileChanged(object sender, FileWatcherEventArgs e)
+        { CheckFiledChanged(ref IsReferenceFileChanged); }
+
+        protected void CheckFiledChanged(ref bool bFileChg)
+        {
+            //--- Set the file changed
+            bFileChg = true;
+
+            //--- Check file changed
+            if (!IsObjectFileChanged || !IsReferenceFileChanged)
+                return;
+
+            //--- Invoke the task for run event and clear the file changed flags
+            InvokeTaskForRun();
+            IsObjectFileChanged = IsReferenceFileChanged = false;
+        }
+
+        #endregion Events
+
         #region Actions
 
-        public override bool CanRun()
+        public override void Start()
         {
+            //--- Start the SAP file watchers
+            ObjectFileWatcher.Watch(true);
+            ReferenceFileWatcher.Watch(true);
 
-return true;
 
-            bool bRun = false;
+ObjectFileWatcher.InvokeFileUpdatedEvent();
+ReferenceFileWatcher.InvokeFileUpdatedEvent();
 
-            //--- Get the run flag
-            bRun = base.CanRun() && SAPObjectFileWatcher.IsFileUpdated() && SAPReferenceFileWatcher.IsFileUpdated();
-
-            //--- Check run
-            if (bRun)
-            {
-                //--- Update the SAP files
-                SAPObjectFileWatcher.UpdateLastWriteTime();
-                SAPReferenceFileWatcher.UpdateLastWriteTime();
-            }
-
-            return bRun;
         }
 
         public override void Run()
         {
+
+/*TEST
+Library.Windows.Windows.Pause(20000);
+return;
+*/
+
             OrgChart SAPOrgCha = null;
             OrgObject SAPOrgObj = null;
             Table Tab = null;
@@ -118,7 +148,7 @@ return true;
 
             //--- Read the SAP org-chart 
             SAPOrgCha = new OrgChart();
-            SAPOrgCha = OrgChart.FromSAPFiles(SAPObjectFileWatcher.FileName, SAPReferenceFileWatcher.FileName);
+            SAPOrgCha = OrgChart.FromSAPFiles(ObjectFileWatcher.FileName, ReferenceFileWatcher.FileName);
 
             //--- Create a new read server users message
             CreateMessage(ProgressMessage.enMessageState.Info, ProgMsg_ReadOrgObjsSvr.Replace("%svr%", GetServer().ServerName));
@@ -229,15 +259,9 @@ return true;
                 SetOrgObjectItemDate(OrgObjItem, FldName_OrgObj_StartDat, SAPOrgObj.StartDate);
                 SetOrgObjectItemDate(OrgObjItem, FldName_OrgObj_EndDat, SAPOrgObj.EndDate);
 
-                //--- Check position object type
+                //--- Check position obejct type
                 if (SAPOrgObj.ObjectType == OrgObject.enObjectType.Position)
-                {
-                    try
-                    { GetSBMItemFieldByDatabaseName(OrgObjItem, FldName_Pos_JobID).SetIntegerValue(Convert.ToInt32(SAPOrgObj.ShortName)); }
-                    catch(Exception Exc)
-                    {; }
-                }
-                    
+                    GetSBMItemFieldByDatabaseName(OrgObjItem, FldName_Pos_JobID).SetTextValue(SAPOrgObj.ShortName);
                 //--- Check person object type
                 else if (SAPOrgObj.ObjectType == OrgObject.enObjectType.Person)
                 {
@@ -259,7 +283,7 @@ return true;
             }
 
             //--- Set the chart objects of the org-chart
-            SetChartObjects(SAPOrgCha.ChartObjects, OrgChaItem);
+            SetChartObjects(SAPOrgCha.ChartObjects, null, OrgChaItem);
 
             //--- Activate and tag the item lists
             ActivateOrgObjectItems(UnitItemLst, false, enAction.Delete);
@@ -285,26 +309,26 @@ return true;
             CreateMessage(ProgressMessage.enMessageState.Info, ProgMsg_FinImpADUsrs, nAllCnt, nAllCnt);
         }
 
-        protected void SetChartObjects(ChartObjectList SAPChaObjLst, AuxiliaryItem OrgObjItem)
+        protected void SetChartObjects(ChartObjectList SAPChaObjLst, ChartObject SAPLeadPos, AuxiliaryItem ChaObjItem)
         {
             ChartObject SAPChaObj = null;
-            AuxiliaryItem ChaObjItem = null;
+            AuxiliaryItem OrgObjItem = null;
             string sFldName = null;
             ItemIdentList IdentLst = null;
             ItemField Fld = null;
 
             //--- Clear the chart object references fields
-            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_Units);
-            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_Poss);
-            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_Pers);
-            ClearChartObjectReferences(OrgObjItem, FldName_ChaObj_CosCens);
+            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_Units);
+            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_Poss);
+            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_Pers);
+            ClearChartObjectReferences(ChaObjItem, FldName_ChaObj_CosCens);
 
             //--- Import the SAP objects
             for (int nIdx = 0; nIdx < SAPChaObjLst.Count; nIdx++)
             {
                 //--- Get the SAP chart object and the tagged org-object item
                 SAPChaObj = SAPChaObjLst[nIdx];
-                ChaObjItem = (AuxiliaryItem)SAPChaObj.OrgObject.Tag;
+                OrgObjItem = (AuxiliaryItem)SAPChaObj.OrgObject.Tag;
 
                 //--- Get the chart object field name with the SAP object type
                 if (SAPChaObj.OrgObject.ObjectType == OrgObject.enObjectType.Unit)
@@ -319,15 +343,21 @@ return true;
                     throw new Exception(ErrMsg_InvSAPObjTyp.Replace("%typ%", SAPChaObj.OrgObject.ObjectType.ToString()));
 
                 //--- Get the field and the items idents
-                Fld = GetSBMItemFieldByDatabaseName(OrgObjItem, sFldName);
+                Fld = GetSBMItemFieldByDatabaseName(ChaObjItem, sFldName);
                 IdentLst = Fld.GetItemIdentValues();
 
                 //--- Add the chart object item ident and set the item idents
-                IdentLst.Add(new ItemIdent(ChaObjItem));
+                IdentLst.Add(new ItemIdent(OrgObjItem));
                 Fld.SetItemIdentValues(IdentLst);
 
+                /*
+                //--- Set the lead position item if exists
+                if (SAPLeadPos != null)
+                    GetSBMItemFieldByDatabaseName(ChaObjItem, FldName_ChaObj_LeadPos).SetItemIdentValue(new ItemIdent((AuxiliaryItem)SAPChaObj.LeadPosition.Tag));
+                */
+
                 //--- Set the item references 
-                SetChartObjects(SAPChaObj.ChartObjects, ChaObjItem);
+                SetChartObjects(SAPChaObj.ChartObjects, SAPChaObj.LeadPosition, OrgObjItem);
             }
         }
 
@@ -462,3 +492,4 @@ return true;
 
 
 
+ 

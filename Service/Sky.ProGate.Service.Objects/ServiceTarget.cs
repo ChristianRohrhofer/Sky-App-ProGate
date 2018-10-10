@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Timers;
+using System.Windows.Forms;
 using Sky.ProGate.Application.Objects;
 
 
@@ -28,28 +28,39 @@ namespace Sky.ProGate.Service.Objects
         public ConfigFile ConfigFile { get; set; } = null;
         public bool IsServiceTargetRunning { get; protected set; } = false;
         public Task RunningTask { get; protected set; } = null;
-        protected Timer TaskTimer { get; set; } = null;
         public ImportADUsersTask ImportADUserTask { get; set; } = null;
         public ImportSAPOrgaChartTask ImportSAPOrgaChartTask { get; set; } = null;
+        public CleanUpTask CleanUpTask { get; set; } = null;
         public List<Task> Tasks { get; protected set; } = null;
+        public List<Task> TaskWaitList { get; protected set; } = null;
+        protected Timer TaskTimer { get; set; } = null;
         public ProgressManager ProgressManager { get; set; } = null;
 
         public ServiceTarget()
         {
             //--- Init the config file and the message logger
             ConfigFile = new ConfigFile(Global.GetFileName(FileName_Cfg));
+
+            TaskTimer = new Timer();
+            TaskTimer.Interval = Itv_TskTime;
+            TaskTimer.Tick += OnRunNextTask;
             ProgressManager = new ProgressManager(ConfigFile.GetString(NodPath_Log_Path, true));
-    
-            //--- Init the tasks
-            ImportADUserTask = new ImportADUsersTask(this);
-            ImportSAPOrgaChartTask = new ImportSAPOrgaChartTask(this);
+
+            //--- Init the task lists
+            Tasks = new List<Task>();
+            TaskWaitList = new List<Task>();
 
             //--- Init the tasks
-            Tasks = new List<Task>() { ImportADUserTask, ImportSAPOrgaChartTask };
+            InitTask(ImportADUserTask = new ImportADUsersTask(this));
+            InitTask(ImportSAPOrgaChartTask = new ImportSAPOrgaChartTask(this));
+            InitTask(CleanUpTask = new CleanUpTask(this));
+        }
 
-            //--- Init the task time and set the event handler
-            TaskTimer = new Timer(Itv_TskTime);
-            TaskTimer.Elapsed += OnRunTasks;
+        protected void InitTask(Task Tsk)
+        {
+            //--- Set the task event handler and add to the tasks
+            Tsk.TaskForRun += OnTaskForRun;
+            Tasks.Add(Tsk);
         }
 
         public void Dispose()
@@ -63,8 +74,11 @@ namespace Sky.ProGate.Service.Objects
 
         #region Events
 
-        protected void OnRunTasks(object sender, EventArgs e)
-        { RunTasks(); }
+        protected void OnTaskForRun(object sender, TaskEventArgs e)
+        { AddTaskToTaskWaitList(e.Task); }
+
+        protected void OnRunNextTask(object sender, EventArgs e)
+        { RunNextTask(); }
 
         #endregion Events
 
@@ -85,52 +99,72 @@ namespace Sky.ProGate.Service.Objects
 
         public void Start()
         {
-            //--- Start the task timer and set the service target running flag
-            TaskTimer.Start();
+            //--- Set the service target running flag
             IsServiceTargetRunning = true;
-        }
 
-        public void Stop()
-        {
-            //--- Wait while running task exists
-            while(RunningTask != null)
-            {; }
-
-            //--- Stop the task timer and clear the service target running flag
-            TaskTimer.Stop();
-            IsServiceTargetRunning = false;
-        }
-
-        protected void RunTasks()
-        {
-            //--- Stop the task timer
-            TaskTimer.Stop();
-
-            //--- Run the task
+            //--- Start th active tasks 
             foreach (Task Tsk in Tasks)
             {
-                //--- Run the zask if can run
-                if (Tsk.CanRun())
-                    RunTask(Tsk);
+                //--- Start the task if active
+                if (Tsk.Active)
+                    Tsk.Start();
             }
 
             //--- Start the task timer
             TaskTimer.Start();
         }
 
-        protected void RunTask(Task Tsk)
+        public void Stop()
         {
-            //--- Set the running task
-            RunningTask = Tsk;
+            //--- Stop the task timer
+            TaskTimer.Stop();
 
-            //--- Run the task
-            Tsk.RunTask();
+            //--- Wait while running task exists
+            while (RunningTask != null)
+            {; }
 
-            //--- Clear the running task
+            //--- Dispose the tasks 
+            foreach (Task Tsk in Tasks)
+                Tsk.Dispose();
+
+            //--- Clear the service target running flag
+            IsServiceTargetRunning = false;
+        }
+
+        public void AddTaskToTaskWaitList(Task Tsk)
+        {
+            //--- Check task can run or exists in the task wait list
+            if (Tsk.CanRun() ? TaskWaitList.Contains(Tsk) : true)
+                return;
+
+            //--- Add the task to the task wait list
+            TaskWaitList.Add(Tsk);
+        }
+
+        public void RunNextTask()
+        {
+            //--- Check task in task wait list exists
+            if (TaskWaitList.Count == 0)
+                return;
+
+            //--- Step the task timer
+            TaskTimer.Stop();
+
+            //--- Get and remove the first task of the task wait list
+            RunningTask = TaskWaitList[0];
+            TaskWaitList.RemoveAt(0);
+
+            //--- Run the task and clear the running task
+            RunningTask.Run();
             RunningTask = null;
+
+            //--- Start the task timer
+            TaskTimer.Start();
         }
 
         #endregion Actions
     }
 
 }
+
+

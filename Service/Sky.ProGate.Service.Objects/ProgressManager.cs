@@ -75,6 +75,7 @@ namespace Sky.ProGate.Service.Objects
 
         protected void CheckMessage()
         {
+            /*RW
             string sFileTxt = null;
             StreamReader StrRead = null;
 
@@ -99,6 +100,7 @@ namespace Sky.ProGate.Service.Objects
             //--- Invoke the message sent event if exists and start the message timer
             MessageCreated?.Invoke(this, new TaskProgressEventArgs(new ProgressMessage(sFileTxt)));
             MessageTimer.Start();
+            */
         }
 
         public void CreateMessage(ProgressMessage Msg)

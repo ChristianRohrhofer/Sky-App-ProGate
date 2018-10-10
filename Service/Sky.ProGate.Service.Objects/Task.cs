@@ -25,6 +25,10 @@ namespace Sky.ProGate.Service.Objects
             ErrMsg_SBMTabNotExi = "SBM Table with name '%name%' does not exists",
             ErrMsg_SBMFldNotExi = "SBM Item field with database name '%name%' does not exists";
 
+        public delegate void TaskEventHandler(object sender, TaskEventArgs e);
+
+        public event TaskEventHandler TaskForRun;
+
         public ServiceTarget ServiceTarget { get; protected set; } = null;
         public int ID { get; protected set; } = Global.IntegerNull;
         public string Name { get; protected set; } = Global.StringNull;
@@ -55,6 +59,9 @@ namespace Sky.ProGate.Service.Objects
             LastRunDuration = ServiceTarget.ConfigFile.GetTimeSpan(GetConfigNodePath(NodName_Tsk_LastRunDur), false);
         }
 
+        public override string ToString()
+        { return Name; }
+
         protected string GetConfigNodePath(string sNodName)
         { return Path.Combine(TaskNodePath, sNodName); }
 
@@ -63,9 +70,15 @@ namespace Sky.ProGate.Service.Objects
         #region Server
 
         protected Server GetServer()
-        { return Server == null ? Server = new Server(ServiceTarget.GetServerName(), ServiceTarget.GetServerUser(), ServiceTarget.GetServerPassword()) : Server; }
+        {
+            //--- Check server exists
+            return 
+                Server == null ? 
+                    Server = new Server(ServiceTarget.GetServerName(), ServiceTarget.GetServerUser(), ServiceTarget.GetServerPassword()) : 
+                    Server;
+        }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             //--- Logout from the server if exists
             if (Server != null)
@@ -75,6 +88,11 @@ namespace Sky.ProGate.Service.Objects
         #endregion Server
 
         #region Actions
+
+        public abstract void Start();
+
+        protected void InvokeTaskForRun()
+        { TaskForRun?.Invoke(this, new TaskEventArgs(this)); }
 
         public virtual bool CanRun()
         {
@@ -201,5 +219,15 @@ namespace Sky.ProGate.Service.Objects
         #endregion Logging
     }
 
+    public class TaskEventArgs : EventArgs
+    {
+        public Task Task { get; protected set; } = null;
+
+        public TaskEventArgs(Task Tsk)
+        {
+            //--- Set the task
+            Task = Tsk;
+        }
+    }
 }
 

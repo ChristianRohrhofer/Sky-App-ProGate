@@ -44,17 +44,38 @@ namespace Sky.ProGate.Service.Objects
         {
             //--- Init the AD user file watcher
             ADUserFileWatcher = new FileWatcher(ServiceTarget.ConfigFile.GetString(GetConfigNodePath(NodName_ADUsrFile), true));
+
+            //--- Set the event handlers
+            ADUserFileWatcher.FileCreated += OnADUserFileChanged;
+            ADUserFileWatcher.FileUpdated += OnADUserFileChanged;
         }
 
         #endregion Members
 
+        #region Events
+
+        protected void OnADUserFileChanged(object sender, FileWatcherEventArgs e)
+        { InvokeTaskForRun(); }
+
+        #endregion Events
+
         #region Actions
 
-        public override bool CanRun()
-        { return base.CanRun() && ADUserFileWatcher.CheckFileUpdated(); }
+        protected void HanldeCleanUpFileChanged()
+        { InvokeTaskForRun(); }
+
+        public override void Start()
+        {
+            //--- Watch the AD user file
+            ADUserFileWatcher.Watch(true);
+        }
 
         public override void Run()
         {
+
+Library.Windows.Windows.Pause(60000);
+return;
+
             UserList UsrLst = null;
             User ImpUsr = null, DefUsr = null;
             string sDefUsrLogID = Global.StringNull, sMsg = Global.StringNull;
@@ -382,6 +403,7 @@ namespace Sky.ProGate.Service.Objects
 
             return true;
         }
+
     }
 
 }
